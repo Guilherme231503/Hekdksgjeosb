@@ -1,64 +1,73 @@
-// Electrolyte liquid
-elements.electrolyte = {
-    color: "#3fa7ff",
-    behavior: behaviors.LIQUID,
-    category: "liquids",
-    name: "Electrolyte"
+// =====================================
+//  Anodized Aluminium Mod for Sandboxels
+// =====================================
+
+if (!elements.aluminum) {
+    console.warn("Aluminum element not found! Make sure Sandboxels has 'aluminum' enabled.");
+}
+
+// Criar um elemento que substitui o alumínio original quando é anodizado
+elements.anodized_aluminium = {
+    name: "Anodized Aluminium",
+    color: "#bbbbbb",
+    behavior: behaviors.WALL,
+    category: "solids",
+    state: "solid",
+    density: 2700,
+    
+    tick: function(pixel) {
+        // Garante que existe o contador
+        if (pixel.anodizeTime === undefined) {
+            pixel.anodizeTime = 0;
+        }
+
+        // Só permite anodizar se o pixel for alumínio
+        if (pixel.originalElement === undefined) {
+            pixel.originalElement = "aluminum";
+        }
+
+        // Se perdeu identidade, reinicia
+        if (pixel.originalElement !== "aluminum") return;
+
+        // Se está recebendo choque, aumenta o tempo
+        if (pixel.charge && pixel.charge > 0) {
+            pixel.anodizeTime++;
+        }
+
+        // ------ CORES BASEADAS NO TEMPO ANODIZANDO ------
+        if (pixel.anodizeTime > 0 && pixel.anodizeTime < 20) {
+            pixel.color = "#9ec4ff"; // light blue
+        }
+        else if (pixel.anodizeTime >= 20 && pixel.anodizeTime < 40) {
+            pixel.color = "#6fa5ff"; // deep blue
+        }
+        else if (pixel.anodizeTime >= 40 && pixel.anodizeTime < 70) {
+            pixel.color = "#bb55ff"; // purple
+        }
+        else if (pixel.anodizeTime >= 70 && pixel.anodizeTime < 100) {
+            pixel.color = "#ffaa33"; // orange
+        }
+        else if (pixel.anodizeTime >= 100) {
+            pixel.color = "#ffdd00"; // gold
+        }
+    }
 };
 
-// Anodization stages by time
-const anodizationStages = [
-    {time: 5,  color: "#f5d26a", name: "gold"},
-    {time: 12, color: "#ff3a3a", name: "red"},
-    {time: 20, color: "#8d2bff", name: "purple"},
-    {time: 35, color: "#2b4bff", name: "blue"},
-    {time: 50, color: "#1a1a1a", name: "black"}
-];
 
-// Create the anodized aluminum elements
-for (let stage of anodizationStages) {
-    elements["aluminum_anodized_" + stage.name] = {
-        color: stage.color,
-        behavior: behaviors.SOLID,
-        category: "Anodized Metals",
-        name: "Anodized Aluminum (" + stage.name + ")",
-        density: 2700
-    };
-}
+// =============================
+//  Transformação do alumínio
+// =============================
 
-// Add internal property to track anodizing time
-if (!elements.aluminum.properties) {
-    elements.aluminum.properties = {};
-}
-elements.aluminum.properties.anodizeTime = 0;
+// Quando o pixel de "aluminum" receber choque, transforma em anodized_aluminium
+// mas mantém a estrutura e posição original
 
-// Main anodizing system (time + shock + electrolyte)
 elements.aluminum.tick = function(pixel) {
 
-    // Check if touching electrolyte
-    let touchingElectrolyte = false;
-    for (let i = 0; i < adjacentCoords.length; i++) {
-        let x = pixel.x + adjacentCoords[i][0];
-        let y = pixel.y + adjacentCoords[i][1];
-        if (!isEmpty(x,y)) {
-            let other = pixelMap[x][y];
-            if (other.element === "electrolyte") {
-                touchingElectrolyte = true;
-                break;
-            }
-        }
-    }
+    // Se recebeu choque → começa anodização
+    if (pixel.charge && pixel.charge > 0) {
 
-    // Requires both electrolyte + charge (shock tool)
-    if (touchingElectrolyte && pixel.charge > 0) {
-        pixel.anodizeTime = (pixel.anodizeTime || 0) + 1;
-    }
+        // Troca para elemento anodizado mantendo o timer
+        changePixel(pixel, "anodized_aluminium");
 
-    // Update anodization stage based on accumulated time
-    for (let stage of anodizationStages) {
-        if (pixel.anodizeTime >= stage.time) {
-            pixel.element = "aluminum_anodized_" + stage.name;
-            pixel.color = stage.color;
-        }
     }
 };
